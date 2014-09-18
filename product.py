@@ -111,6 +111,11 @@ class Product:
     use_template_description = fields.Boolean("Use template's description")
     use_template_images = fields.Boolean("Use template's images")
 
+    @classmethod
+    def validate(cls, products):
+        super(Product, cls).validate(products)
+        cls.check_uri_uniqueness(products)
+
     def get_default_image(self, name):
         """
         Returns default product image if any.
@@ -127,6 +132,9 @@ class Product:
         cls.description.states['invisible'] = Bool(
             Eval('use_template_description')
         )
+        cls._error_messages.update({
+            'unique_uri': ('URI of product should be unique'),
+        })
         cls.per_page = 9
 
     @staticmethod
@@ -149,6 +157,22 @@ class Product:
     @staticmethod
     def default_use_template_images():
         return True
+
+    @classmethod
+    def check_uri_uniqueness(cls, products):
+        """
+        Ensure uniqueness of products uri.
+        """
+        query = ['OR']
+        for product in products:
+            arg = [
+                'AND',
+                ('id', '!=', product.id),
+                ('uri', '=', product.uri),
+            ]
+            query.append(arg)
+        if cls.search(query):
+            cls.raise_user_error('unique_uri')
 
     @classmethod
     @route('/product/<uri>')
